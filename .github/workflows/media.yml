@@ -1,0 +1,41 @@
+name: media
+
+# Uploads post media to the public bucket, from main only.
+# Google trusts this repo on refs/heads/main and nothing else (Workload
+# Identity Federation), so unmerged media can never be uploaded.
+# No key is stored anywhere: GitHub's signed token is exchanged for a
+# short-lived Google token at run time.
+on:
+  push:
+    branches: [main]
+    paths: ["media/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/596245378021/locations/global/workloadIdentityPools/github/providers/polystratum-content
+          service_account: content-publisher@polystratum-agent-os.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Upload new media (content-hash names, never overwritten)
+        run: |
+          python -m publisher.media plan | while read -r src dest; do
+            if gcloud storage objects describe "$dest" >/dev/null 2>&1; then
+              echo "exists  $dest"
+            else
+              gcloud storage cp --no-clobber "$src" "$dest"
+              echo "uploaded $src -> ${dest/gs:\/\//https://storage.googleapis.com/}"
+            fi
+          done
