@@ -1,0 +1,29 @@
+name: gate
+
+# Runs on every pull request. Branch protection makes this a required check,
+# so nothing merges to main unless the tests, the brand rules and the
+# approval hashes all pass.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Tests
+        run: python -m pytest -q
+      - name: Brand and safety rules
+        run: python -m gate check
+      - name: Approval hashes match the files
+        run: python -m gate verify

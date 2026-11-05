@@ -1,0 +1,25 @@
+name: publish
+
+# Phase 0: dry run only. Lists what is due and refuses anything whose hash
+# does not match the approved manifest. Real posting arrives in Phase 0 step 6,
+# with slot-time cron entries replacing the manual trigger.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Select due items (dry run)
+        run: python -m publisher.due
